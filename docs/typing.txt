@@ -1,0 +1,53 @@
+
+Definitions
+===========
+
+Typing Context:     Γ
+Witnesses:          w, q
+Witness Variable:   x, y, z
+Witness Values:     v
+Types:              T, Y
+Type Variables:     U, V
+Concrete Types:     C
+
+Γ := Ø                  Null Context
+   | Γ, x : T           Context Witness Extension
+   | Γ, X               Context Type    Extension
+
+w := x                  Witness Variable
+   | w : T              Type Annotation
+   | λ x : T . w        Witness Pi Abstraction
+   | w w                Witness Pi Elimination
+   | c                  Concrete Values
+
+T := U                  Type Variable
+   | Π x : T . T        Witness Pi-Types (Witness Dependent Exponential Types)
+   | C
+
+
+Typing Rules
+============
+
+(T-Variable)
+
+    x : T ∈ Γ
+    ==========
+    Γ ⊢ x : T
+
+(T-Annotation)
+
+       Γ ⊢ w : T
+    ================
+    Γ ⊢ (w : T) : T
+
+(T-Witness Dependent Exponential Abstraction)
+
+            Γ, x : T ⊢ w : Y
+    =================================
+    Γ ⊢ (λ x : T . w) : (Π x : T . Y)
+
+(T-Witness Dependent Exponential Elimination)
+
+    Γ ⊢ w : (Π x : T . Y)     Γ ⊢ q : T
+    ====================================
+            Γ ⊢ w q : [x ↦ q]Y
