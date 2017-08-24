@@ -10,6 +10,10 @@ where
 
 import Contexts (Ctx(..), empty, pushBinding, findBind)
 
+{- * Note, I chose witness instead of term because of the fact that type also starts with t,
+ -   and the fact that a : A can be read as "'a' is a witness of the proposition 'A'".
+ -}
+
 data Wit = WVar  Int             -- Variables:                       x
          | WAnn  Wit    Type     -- Annotations:                     w : T
          | WAbs  String Type Wit -- Witness Dependent Abstractions:  λ x : T . w
@@ -37,8 +41,11 @@ instance Show Wit where
 instance Show Type where
   show = showType (empty,empty)
 
-type WContext = Ctx (String, Type)
-type TContext = Ctx String
+type WContext = Ctx (String, Type)   -- Witness Context
+type TContext = Ctx String           -- Type Context
+type Context  = (WContext, TContext)
+
+-- pushWBinding is different from pushBinding because it shifts all witness variables in the type bindings by 1
 
 pushWBinding :: (String,Type) -> WContext -> WContext
 pushWBinding p g = Ctx $ map (\(i,(s,t)) -> (i,(s, shiftwT 1 t))) l
@@ -55,7 +62,7 @@ pushWBinding p g = Ctx $ map (\(i,(s,t)) -> (i,(s, shiftwT 1 t))) l
     shiftwT i (VectCon w)      = VectCon (shiftw i w)
     shiftwT _ w                = w
 
-type Context = (WContext, TContext)
+-- closedWit and closedTyp determine wheter a witness or a type has free variables, respectively.
 
 closedWit :: Wit -> Bool
 closedWit = closedWit0 (empty,empty)
@@ -78,6 +85,9 @@ closedTyp0 g (VectCon w)      = closedWit0 g w
 closedTyp0 g (TypVar i)       = case i `findBind` (snd g) of Nothing -> False; Just _ -> True
 closedTyp0 _ _                = True
 
+-- hasWVar and hasTWVar are used to determine if a dependent type is constant.
+  -- If the dependent type is constant than it is printed in simpliefied notation.
+
 hasWVar :: Int -> Wit -> Bool
 hasWVar i (WVar j)     = i == j
 hasWVar i (WAnn w t)   = hasWVar i w || hasTWVar i t
@@ -91,6 +101,10 @@ hasTWVar :: Int -> Type -> Bool
 hasTWVar i (WitPiTyp s a b) = hasTWVar i a || hasTWVar (i + 1) b
 hasTWVar i (VectCon w)      = hasWVar i w
 hasTWVar _ _                = False
+
+-- showWit and showTyp are used to make Wit and Type members of the Show typeclass
+  -- showNumber and cvrtNum show natural numbers
+  -- tOptParen and wOptParen are used if parenthesis are optional depending on the argument
 
 showWit :: Context -> Wit -> String
 showWit g (WVar i) = 
