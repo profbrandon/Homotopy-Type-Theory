@@ -1,6 +1,6 @@
 
 module Contexts
-  ( Ctx
+  ( Ctx(..)
   , empty
   , shiftBindings
   , pushBinding
@@ -8,7 +8,7 @@ module Contexts
   )
 where
 
-newtype Ctx a = Ctx [(Int, a)]
+newtype Ctx a = Ctx [(Int, a)] deriving Show
 
 empty :: Ctx a
 empty = Ctx []

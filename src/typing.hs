@@ -4,7 +4,8 @@ module Typing
 where
 
 import Contexts (empty, pushBinding, findBind)
-import Fundamental (Wit(..), Type(..), Context, cvrtSucc)
+import Fundamental (Wit(..), Type(..), Context, pushWBinding, cvrtSucc)
+import Substitution (shiftwT, shiftw, subwwT)
 
 data Error = UnboundWitVar      Int
            | AnnotationMismatch Type Type
@@ -35,7 +36,7 @@ typeof0 g (WAnn w t) = do
 typeof0 g (WAbs s t w) = do
   tw <- typeof0 g' w 
   return $ WitPiTyp s t tw
-  where g' = (pushBinding (s,t) (fst g), snd g)
+  where g' = (pushWBinding (s,t) (fst g), snd g)
 typeof0 g (WApp a b) = do
   ta <- typeof0 g a
   tb <- typeof0 g b
@@ -56,31 +57,3 @@ typeof0 g (WSucc w) = do
   if tw == NatTyp then return NatTyp else Left $ MissingNatType tw
 typeof0 _ WUnit = return UnitTyp
 typeof0 _ WZero = return NatTyp
-
-subwww :: Int -> Wit -> Wit -> Wit
-subwww i a (WVar j)     = if i == j then a else WVar j
-subwww i a (WAnn w t)   = WAnn (subwww i a w) (subwwT i a t)
-subwww i a (WAbs s t w) = WAbs s (subwwT (i + 1) a t) (subwww (i + 1) a w)
-subwww i a (WApp w q)   = WApp (subwww i a w) (subwww i a q)
-subwww i a (WSucc w)    = WSucc (subwww i a w)
-subwww i a (WVect l)    = WVect $ map (subwww i a) l
-subwww _ _ w            = w
-
-shiftw :: Int -> Int -> Wit -> Wit
-shiftw d c (WVar i)     = WVar $ if i < c then i else d + i
-shiftw d c (WAnn w t)   = WAnn (shiftw d c w) (shiftwT d c t)
-shiftw d c (WAbs s t w) = WAbs s (shiftwT d c t) (shiftw d c w)
-shiftw d c (WApp a b)   = WApp (shiftw d c a) (shiftw d c b)
-shiftw d c (WSucc w)    = WSucc (shiftw d c w)
-shiftw d c (WVect l)    = WVect $ map (shiftw d c) l
-shiftw _ _ w            = w
-
-subwwT :: Int -> Wit -> Type -> Type
-subwwT i a (WitPiTyp s t y) = WitPiTyp s (subwwT i a t) (subwwT (i + 1) a y)
-subwwT i a (VectCon w)      = VectCon $ subwww i a w
-subwwT _ _ t                = t
-
-shiftwT :: Int -> Int -> Type -> Type
-shiftwT d c (WitPiTyp s t y) = WitPiTyp s (shiftwT d c t) (shiftwT d (c + 1) y)
-shiftwT d c (VectCon w)      = VectCon $ shiftw d c w
-shiftwT _ _ t                = t
