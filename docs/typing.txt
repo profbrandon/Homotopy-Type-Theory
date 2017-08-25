@@ -6,6 +6,7 @@ Typing Context:     Γ
 Witnesses:          w, q
 Witness Variable:   x, y, z
 Witness Values:     v
+Names:              n
 Types:              T, Y
 Type Variables:     U, V
 Concrete Types:     C
@@ -16,6 +17,7 @@ Concrete Types:     C
 
 w := x                  Witness Variable
    | w : T              Type Annotation
+   | let n : T in w     Let Type-Binding
    | λ x : T . w        Witness Pi Abstraction
    | w w                Witness Pi Elimination
    | c                  Concrete Values
@@ -39,6 +41,12 @@ Typing Rules
        Γ ⊢ w : T
     ================
     Γ ⊢ (w : T) : T
+
+(T-Let Type-Binding)
+
+        Γ, n : T ⊢ w : Y
+    =========================
+    Γ ⊢ (let n : T in w) : Y
 
 (T-Witness Dependent Exponential Abstraction)
 
