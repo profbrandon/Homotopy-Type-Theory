@@ -18,14 +18,11 @@ data Wit = WVar  Int             -- Variables:                       x
          | WLet  String Type Wit -- Let Type-Binding:                let n : T in w
          | WAbs  String Type Wit -- Witness Dependent Abstractions:  λ x : T . w
          | WApp  Wit    Wit      -- Witness Dependent Application:   w w
-         -- Primitive Witnesses
-         | WitC  String          -- Witness Constant:                c
          deriving Eq
 
 data Type = TypVar   Int                -- Type Variable:              U
           | WitPiTyp String Type Type   -- Witness Dependent Pi-Type:  Π(x : T). T
-          -- Conctrete Types
-          | TypC     String             -- Type Constant:              C
+          | TypConst String             -- Type Name:                  C
           deriving Eq
 
 instance Show Wit where
@@ -99,7 +96,6 @@ showWit g (WAnn w t)   = wOptParen g w ++ ":" ++ showType g t
 showWit g (WLet n t w) = "let " ++ n ++ ":" ++ showType g t ++ " in " ++ showWit g' w where g' = (pushWBinding (n,t) (fst g), snd g)
 showWit g (WAbs s t w) = "Lambda(" ++ s ++ ":" ++ showType g t ++ "). " ++ showWit g' w where g' = (pushWBinding (s,t) (fst g), snd g)
 showWit g (WApp a b)   = wOptParen g a ++ " " ++ wOptParen g b
-showWit _ (WitC n)     = n
 
 showType :: Context -> Type -> String
 showType g (TypVar i) =
@@ -110,7 +106,7 @@ showType g (WitPiTyp s a b)
   | hasTWVar 0 b = "Pi(" ++ s ++ ":" ++ showType g a ++ "). " ++ showType g' b 
   | otherwise    = tOptParen g a ++ " -> " ++ showType g' b
   where g' = (pushWBinding (s,a) (fst g), snd g)
-showType _ (TypC n)    = n
+showType _ (TypConst s) = s
 
 tOptParen :: Context -> Type -> String
 tOptParen g (WitPiTyp s a b) = "(" ++ showType g (WitPiTyp s a b) ++ ")"

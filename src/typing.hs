@@ -46,10 +46,4 @@ typeof0 g (WApp a b) = do
   case ta of
     WitPiTyp _ t1 t2 -> 
       if t1 == tb then return $ shiftwT (-1) 0 (subwwT 0 (shiftw 1 0 b) t2) else Left $ ParamTypeMismatch t1 tb
-    t                -> Left $ MissingPiType t 
-typeof0 g (WitC s) = 
-  let (Ctx w, _) = g
-      (_,nts)    = unzip w 
-  in case s `lookup` nts of
-    Nothing -> Left $ UndefinedWitConst s
-    Just t  -> return t
+    t                -> Left $ MissingPiType t
