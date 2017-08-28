@@ -13,9 +13,12 @@ module Utils
   , pushTBinding
   , hasWitVar
   , hasTypVar
+  , freeTypVars
+  , wtypVars
   )
 where
 
+import Data.List (union)
 import Data.Maybe (isJust)
 
 {- * Note, I chose witness instead of term because of the fact that type also starts with t,
@@ -27,7 +30,6 @@ data Wit = WitVar String                -- Variables:                     x
 
 data Type = TypVar   String             -- Type Variable:                 U
           | WitPiTyp String Type Type   -- Witness Dependent Pi-Type:     Π(x:T). T
-          | TypWApp  Type   Wit         -- Type-Witness Application:      T w
 
 data Family = Universe                  -- Universe Family:               @
             | ArrFam Type Family        -- Arrow Family:                  T → F
@@ -66,3 +68,31 @@ hasWitVar n (wg,_) = isJust (n `lookup` wg)
 
 hasTypVar :: String -> Context -> Bool
 hasTypVar n (_,tg) = isJust (n `lookup` tg)
+
+freeTypVars :: Type -> [String]
+freeTypVars (TypVar s)       = [s]
+freeTypVars (WitPiTyp s t y) = freeTypVars y `union` freeTypVars t
+
+ftypVars :: Family -> [String]
+ftypVars Universe = []
+ftypVars (ArrFam t f) = ftypVars f `union` ttypVars t
+
+ttypVars :: Type -> [String]
+ttypVars (TypVar s) = [s]
+ttypVars (WitPiTyp s t y) = ttypVars t `union` ttypVars y
+
+wtypVars :: Wit -> [String]
+wtypVars (WitVar _) = []
+wtypVars (WitDef ds w) = wtypVars w `union` dstypVars ds
+  where dstypVars [WitDefJudge wp w] = wtypVars w `union` wptypVars wp
+        dstypVars [WitTypJudge wp t] = ttypVars t `union` wptypVars wp
+        dstypVars [TypDefJudge tp t] = ttypVars t `union` tptypVars tp
+        dstypVars [TypFamJudge tp f] = ftypVars f `union` tptypVars tp
+        dstypVars (d:ds)             = dstypVars [d] `union` dstypVars ds
+        wptypVars (WitVal _)         = []
+        wptypVars (FApp wp a)        = wptypVars wp `union` atypVars a
+        tptypVars (TypVal s)         = [s]
+        tptypVars (OApp tp a)        = tptypVars tp `union` atypVars a
+        atypVars  (Left wp)          = wptypVars wp
+        atypVars  (Right tp)         = tptypVars tp
+

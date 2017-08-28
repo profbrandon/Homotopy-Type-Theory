@@ -6,7 +6,6 @@ where
 import Text.Parsec ((<|>), (<?>), many, parse, parserFail, sepBy1, try)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Char (alphaNum, char, lower, spaces, string, upper)
-import Debug.Trace
 import Utils
 import Printing
 
@@ -42,8 +41,7 @@ witId = do
 typ :: Context -> Parser Type
 typ g = do
   t1 <- (try $ do char '('; spaces; t <- typ g; char ')'; spaces; return t) <|> (typ0 g)
-  t2 <- arrTyp g t1 
-  typWApp g t2
+  arrTyp g t1
 
 typ0 :: Context -> Parser Type
 typ0 g = (try $ tvar g) <|> (witPiTyp g)
@@ -64,13 +62,6 @@ arrTyp g t1 =
   t2 <- typ g
   return $ WitPiTyp "" t1 t2)
     <|> (do return t1)
-
-typWApp :: Context -> Type -> Parser Type
-typWApp g t =
-  (try $ do
-  w <- wit g
-  typWApp g $ TypWApp t w)
-    <|> (do return t)
 
 tvar :: Context -> Parser Type
 tvar g = do

@@ -1,25 +1,9 @@
 
-Definitions
-===========
+Typing
+======
 
-Typing Context:     Γ
-Witnesses:          w, q
-Witness Variable:   x, y, z
-Witness Values:     v
-Names:              n
-Types:              T, Y
-Type Variables:     U, V
-Concrete Types:     C
+(CT-Variable)
 
-Γ := Ø                  Null Context
-   | Γ, x : T           Context Witness Extension
-   | Γ, X : F           Context Type    Extension
-
-w := x                  Witness Variable
-   | define defs in w   Definition Expression
-
-T := U                  Type Variable
-   | Π x : T . T        Witness Pi-Types (Witness Dependent Exponential Types)
-
-F := @                  Universe Family
-   | T → F              Type Constructor Family (Arrow Family)            
+      x : T ∈ Γ
+    ==============
+    Γ ⊢ x : T |Ø C

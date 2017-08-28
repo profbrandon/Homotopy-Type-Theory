@@ -30,7 +30,6 @@ showType g (WitPiTyp s t y)
   | typHasWVar s y = "Pi(" ++ s ++ ":" ++ showType g t ++ "). " ++ showType g' y
   | otherwise      = tRightAssoc g t ++ " -> " ++ showType g' y
   where g' = pushWBinding (s,t) g
-showType g (TypWApp t w) = tRightAssoc g t ++ " " ++ wLeftAssoc g w
 
 showFamily :: Context -> Family -> String
 showFamily _ Universe     = "@"
@@ -67,7 +66,6 @@ wRightAssoc :: Context -> Wit -> String
 wRightAssoc g w = showWit g w
 
 tLeftAssoc :: Context -> Type -> String 
-tLeftAssoc g (TypWApp t w)    = "(" ++ showType g (TypWApp t w) ++ ")"
 tLeftAssoc g t                = showType g t
 
 tRightAssoc :: Context -> Type -> String

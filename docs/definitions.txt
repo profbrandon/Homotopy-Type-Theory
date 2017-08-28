@@ -1,0 +1,47 @@
+
+Definitions
+===========
+
+Typing Context:     Γ
+Witnesses:          w, q
+Witness Variable:   x, y, z
+Witness Values:     v
+Names:              n
+Types:              T, Y
+Type Variables:     U, V
+
+Γ := Ø                  Null Context
+   | Γ, x : T           Context Witness Extension
+   | Γ, X : F           Context Type Extension
+
+w := x                  Witness Variable
+   | define defs in w   Definition Expression
+
+T := U                  Type Variable
+   | Π(x : T). T        Witness Pi-Types (Witness Dependent Exponential Types)
+
+F := @                  Universe Family
+   | T → F              Type Constructor Family (Arrow Family)            
+
+
+
+
+
+
+
+defs := def , defs
+      | def
+
+def := wp :≡ w          Witness Definition Judgement
+     | wp : T           Witness Type Judgement
+     | tp :≡ T          Type Definition Judgement
+     | tp : F           Type Family Judgement
+
+wp := wpv               Witness Pattern Value                 
+    | wp ap             Function Application Pattern
+
+tp := tpv               Type Pattern Value
+    | tp ap             Operator Application Pattern
+
+ap := wp
+    | tp
