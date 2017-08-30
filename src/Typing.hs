@@ -40,11 +40,13 @@ typeof0 c g (WitDef ds w) = do
   (c', g') <- typeDefs c g ds
   typeof0 c' g' w
 typeof0 c g (WitApp w q) = do
-  (tw, c1, _) <- typeof0 c g w
-  (tq, c2, _) <- typeof0 c1 g q
+  (tw, (e1,v1), _) <- typeof0 c g w
+  (tq, c2, _) <- typeof0 c g q
+  let (e2,v2) = shiftTVC (length $ v1) (length $ snd c2) c2
+      c3      = (e1 ++ e2, v1 ++ v2)
   case tw of
-    WitPiTyp _ t y -> if t == tq then return (y, c2, g) else Left $ ParameterTypeMismatch t tq
-    TypVar ('$':_) -> let (eqs,vars) = c2; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,vars), g)
+    WitPiTyp _ t y -> if t == tq then return (y, c3, g) else Left $ ParameterTypeMismatch t tq
+    TypVar ('$':_) -> let (eqs,vars) = c3; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,x:vars), g)
     t              -> Left $ ExpectedWitPiTyp t
 
 
@@ -130,6 +132,13 @@ unify (eqs, _) = unify0 eqs
                 unify0 $ (s1,t1):(s2,t2):cs
               _ -> Left $ CMismatch s t 
           _ -> Left $ CMismatch s t
+
+shiftTV :: Int -> Int -> Type -> Type
+shiftTV i bnd t = shiftTV0 0
+  where shiftTV0 n = if n == bnd then t else subTTT n (TypVar ('$':show (n + i))) $ shiftTV0 (n + 1)
+
+shiftTVC :: Int -> Int -> Constraints -> Constraints
+shiftTVC i bnd (eqs,vars) = (map (\(t,y) -> (shiftTV i bnd t, shiftTV i bnd y)) eqs, map (\s -> let TypVar s' = shiftTV i bnd (TypVar s) in s') vars)
 
 subTTc :: Int -> Type -> [(Type, Type)] -> [(Type, Type)]
 subTTc _ _ [] = []

@@ -19,7 +19,7 @@ wit g = do
   wapp g w
 
 wit0 :: Context -> Parser Wit
-wit0 g = (try $ wvar g) <|> (wdef g)
+wit0 g = (try $ wvar g) <|> (try $ wdef g) <|> (do char '('; spaces; w <- wit g; char ')'; spaces; return w)
 
 wdef :: Context -> Parser Wit
 wdef g = do

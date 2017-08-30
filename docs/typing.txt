@@ -4,6 +4,23 @@ Typing
 
 (CT-Variable)
 
-      x : T ∈ Γ
-    ==============
-    Γ ⊢ x : T |Ø C
+    x : T ∈ Γ
+  ==============
+  Γ ⊢ x : T |Ø C
+
+
+(CT-Definition Block)
+
+  (C', χ', Γ') = typeDefs(C, χ', Γ, defs)     Γ' ⊢ w : T |χ' C'
+  =============================================================
+               Γ ⊢ (define defs in w) : T |χ C' 
+
+
+(CT-Witness-Witness Application)
+
+  Γ ⊢ w : T1 |χ1 C1     Γ ⊢ q : T2 |χ2 C2
+       χ2' = shiftTV (χ2, length χ1)
+           X = fresh (χ1 ∪ χ2')
+       C' = C1 ∪ C2 ∪ {T1 = X → T2}
+  ========================================
+     Γ ⊢ (w q) : X |(χ1 ∪ χ2' ∪ {X}) C'
