@@ -20,15 +20,14 @@ showWit g (WitVar s) =
     Nothing -> "(Unbound Witness Variable: `" ++ s ++ "`)"
     Just _  -> s
 showWit g (WitDef ds w) = "define " ++ str ++ " in " ++ showWit g' w where (str,g') = handleDefs g ds
+showWit g (WitApp a b)  = wRightAssoc g a ++ " " ++ wLeftAssoc g b
 
 showType :: Context -> Type -> String
-showType g (TypVar s) =
-  case s `lookup` (snd g) of
-    Nothing -> "(Unbound Type Variable: `" ++ s ++ "`)"
-    Just _  -> s
+showType g (TypVar ('$':n)) = 'X':n
+showType g (TypVar s)       = s
 showType g (WitPiTyp s t y) 
-  | typHasWVar s y = "Pi(" ++ s ++ ":" ++ showType g t ++ "). " ++ showType g' y
-  | otherwise      = tRightAssoc g t ++ " -> " ++ showType g' y
+  | typHasWVar s y          = "Pi(" ++ s ++ ":" ++ showType g t ++ "). " ++ showType g' y
+  | otherwise               = tRightAssoc g t ++ " -> " ++ showType g' y
   where g' = pushWBinding (s,t) g
 
 showFamily :: Context -> Family -> String
@@ -60,7 +59,8 @@ handleArgP g (Left wp)  = (s,g0) where (s,_,g0) = handleWp g wp
 handleArgP g (Right tp) = (s,g0) where (s,_,g0) = handleTp g tp
 
 wLeftAssoc :: Context -> Wit -> String
-wLeftAssoc g w = showWit g w
+wLeftAssoc g (WitApp a b) = "(" ++ showWit g (WitApp a b) ++ ")"
+wLeftAssoc g w            = showWit g w
 
 wRightAssoc :: Context -> Wit -> String
 wRightAssoc g w = showWit g w

@@ -14,7 +14,12 @@ import Printing
 parseWit = parse (wit empty) ""
 
 wit :: Context -> Parser Wit
-wit g = (try $ wvar g) <|> (wdef g)
+wit g = do
+  w <- wit0 g
+  wapp g w
+
+wit0 :: Context -> Parser Wit
+wit0 g = (try $ wvar g) <|> (wdef g)
 
 wdef :: Context -> Parser Wit
 wdef g = do
@@ -22,6 +27,10 @@ wdef g = do
   (ds, g') <- defs g; string "in ";
   w <- wit g'
   return $ WitDef ds w
+
+wapp :: Context -> Wit -> Parser Wit
+wapp g w1 = 
+  (try $ do w2 <- wit0 g; wapp g $ WitApp w1 w2) <|> (return w1)
 
 wvar :: Context -> Parser Wit
 wvar g = do
