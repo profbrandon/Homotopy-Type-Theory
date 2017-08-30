@@ -24,7 +24,7 @@ wit0 g = (try $ wvar g) <|> (try $ wdef g) <|> (do char '('; spaces; w <- wit g;
 wdef :: Context -> Parser Wit
 wdef g = do
   string "define "; spaces
-  (ds, g') <- defs g; string "in"; space; spaces
+  (ds, g') <- defs g; string "in"; spaces
   w <- wit g'
   return $ WitDef ds w
 

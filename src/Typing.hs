@@ -45,7 +45,7 @@ typeof0 c g (WitApp w q) = do
   let (e2,v2) = shiftTVC (length $ v1) (length $ snd c2) c2
       c3      = (e1 ++ e2, v1 ++ v2)
   case tw of
-    WitPiTyp _ t y -> if t == tq then return (y, c3, g) else Left $ ParameterTypeMismatch t tq
+    WitPiTyp _ t y -> if t == tq then return (y, c3, g) else Left $ ParameterTypeMismatch t tq -- Reminder:  t does not have to be equal to tq.  If one or both are variables, add a constraint
     TypVar ('$':_) -> let (eqs,vars) = c3; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,x:vars), g)
     t              -> Left $ ExpectedWitPiTyp t
 

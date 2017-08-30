@@ -39,7 +39,7 @@ main = do
               case () of _
                            | "exit"   `isPrefixOf` txt' -> do return ()
                            | "typeof" `isPrefixOf` txt' ->
-                             case computeVal (init pre ++ ' ':(drop 6 txt')) of
+                             case computeVal (pre ++ ' ':(drop 6 txt')) of
                                Left  e -> do outputStrLn e; loop pre
                                Right t -> do outputStrLn $ show t; loop pre
                            | otherwise -> do outputStrLn "Error:  unrecognized command"; loop pre
