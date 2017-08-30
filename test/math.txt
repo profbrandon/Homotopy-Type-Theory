@@ -1,0 +1,14 @@
+
+define 
+  Bool  : @,
+  true  : Bool,
+  false : Bool,
+  not false := true,
+  not true  := false,
+  or true  b := true,
+  or false b := b,
+  and true  b := b,
+  and false b := false,
+  xor false b := b,
+  xor true  b := not b
+in 

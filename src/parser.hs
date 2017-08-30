@@ -3,15 +3,15 @@ module Parser
   (parseWit)
 where
 
-import Text.Parsec ((<|>), (<?>), many, parse, parserFail, sepBy1, try)
+import Text.Parsec ((<|>), (<?>), many, parse, parserFail, sepBy1, try, eof)
 import Text.Parsec.String (Parser)
-import Text.Parsec.Char (alphaNum, char, lower, spaces, string, upper)
+import Text.Parsec.Char (alphaNum, char, lower, space, spaces, string, upper)
 import Utils
 import Printing
 
 -- Witness Parsing
 
-parseWit = parse (wit empty) ""
+parseWit = parse (do spaces; wit empty) ""
 
 wit :: Context -> Parser Wit
 wit g = do
@@ -24,7 +24,7 @@ wit0 g = (try $ wvar g) <|> (try $ wdef g) <|> (do char '('; spaces; w <- wit g;
 wdef :: Context -> Parser Wit
 wdef g = do
   string "define "; spaces
-  (ds, g') <- defs g; string "in ";
+  (ds, g') <- defs g; string "in"; space; spaces
   w <- wit g'
   return $ WitDef ds w
 
