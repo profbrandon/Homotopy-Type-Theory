@@ -3,6 +3,7 @@ module Typing where
 
 import Utils
 import Printing
+import Debug.Trace (trace)
 
 data Error = UnboundWitVar         String
            | ConstraintMismatch    Type   Type
@@ -27,25 +28,33 @@ typeof w =
   case typeof0 nullc empty w of
     Left e        -> Left e
     Right (t,c,g) -> 
+      {- trace (show (fst c) ++ " ::: " ++ show g) $ -} 
       case unify c of
         Left (CMismatch s t) -> Left $ ConstraintMismatch s t
         Right subs           -> return $ subAllTTT subs t
 
 typeof0 :: Constraints -> Context -> Wit -> Either Error (Type, Constraints, Context)
-typeof0 c g (WitVar n) = 
+typeof0 c g (WitVar n) = -- s
   case n `lookup` (fst g) of
     Nothing -> Left $ UnboundWitVar n
     Just t  -> return (t, c, g)
-typeof0 c g (WitDef ds w) = do
+typeof0 c g (WitDef ds w) = do -- define ds in w
   (c', g') <- typeDefs c g ds
   typeof0 c' g' w
-typeof0 c g (WitApp w q) = do
+typeof0 c g (WitApp w q) = do -- w q
   (tw, (e1,v1), _) <- typeof0 c g w
   (tq, c2, _) <- typeof0 c g q
   let (e2,v2) = shiftTVC (length $ v1) (length $ snd c2) c2
       c3      = (e1 ++ e2, v1 ++ v2)
   case tw of
-    WitPiTyp _ t y -> if t == tq then return (y, c3, g) else Left $ ParameterTypeMismatch t tq -- Reminder:  t does not have to be equal to tq.  If one or both are variables, add a constraint
+    WitPiTyp _ t y -> -- w : Π(_:T). Y
+      if t == tq 
+        then return (y, c3, g) 
+        else case t of 
+          TypVar ('$':_) -> let (eqs,vars) = c3 in return (y, ((t, tq):eqs,vars), g) -- w : Π(_:$X). Y,  i.e. $X = tq
+          _ -> case tq of
+            TypVar ('$':_) -> let (eqs,vars) = c3 in return (y, ((t, tq):eqs,vars), g)
+            _ -> Left $ ParameterTypeMismatch t tq
     TypVar ('$':_) -> let (eqs,vars) = c3; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,x:vars), g)
     t              -> Left $ ExpectedWitPiTyp t
 
@@ -107,24 +116,29 @@ unify :: Constraints -> Either CError [(Int, Type)]
 unify (eqs, _) = unify0 eqs
   where
     unify0 [] = return []
-    unify0 ((s,t):cs) =
+    unify0 ((s,t):cs) = 
       if s == t
         then unify0 cs
         else case s of
           TypVar ('$':x) -> 
             case hTypVar x s t cs of
-              Left _ -> hback s t cs
-              Right subs -> return subs
+              Nothing -> hback s t cs
+              Just v  -> v
           _ -> hback s t cs
 
     hTypVar x s t cs = if not ('$':x `elem` freeTypVars t) 
-                      then do subs <- unify0 (subTTc n t cs); return $ (n, t):subs
-                      else Left $ CMismatch s t
+                      then case unify0 (subTTc n t cs) of
+                        Left  k    -> Just $ Left k
+                        Right subs -> Just $ Right $ (n, t):subs
+                      else Nothing
                       where n = (read x :: Int)
 
     hback s t cs = 
       case t of
-        TypVar ('$':x) -> hTypVar x t s cs
+        TypVar ('$':x) -> 
+          case hTypVar x t s cs of
+            Nothing -> Left $ CMismatch s t
+            Just s  -> s
         _ -> case s of
           WitPiTyp _ s1 s2 ->
             case t of

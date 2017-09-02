@@ -61,9 +61,13 @@ type Context  = (WContext, TContext)
 
 empty = ([],[])
 
-pushWBinding p (wg,tg) = (p:wg,tg)
+pushWBinding p@(n,_) g@(wg,tg) 
+  | hasWitVar n g = g
+  | otherwise     = (p:wg,tg)
 
-pushTBinding p (wg,tg) = (wg,p:tg)
+pushTBinding p@(n,_) g@(wg,tg) 
+  | hasTypVar n g = g
+  | otherwise     = (wg,p:tg)
 
 hasWitVar :: String -> Context -> Bool
 hasWitVar n (wg,_) = isJust (n `lookup` wg)

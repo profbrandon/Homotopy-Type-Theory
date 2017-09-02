@@ -23,6 +23,7 @@ define
   pred n0       := n0,
   pred (succ n) := n,
 
+  add : Nat -> Nat -> Nat,
   add n0 m := m,
-  add (succ n) m := succ m
+  add (succ n) m := succ (add n m)
 in
