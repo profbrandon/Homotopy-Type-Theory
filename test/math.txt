@@ -1,5 +1,10 @@
 
 define 
+  Bottom : @,
+
+  Unit : @,
+  unit : Unit,
+
   Bool  : @,
   true  : Bool,
   false : Bool,
@@ -23,6 +28,11 @@ define
   pred n0       := n0,
   pred (succ n) := n,
 
-  add n0 m := m,
-  add (succ n) m := succ (add n m)
+  add n0 m       := m,
+  add (succ n) m := succ (add n m),
+
+  equal n0       n0       := true,
+  equal n0       (succ n) := false,
+  equal (succ n) n0       := false,
+  equal (succ n) (succ m) := equal n m
 in
