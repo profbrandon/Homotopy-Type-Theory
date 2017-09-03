@@ -25,29 +25,36 @@ import Data.Maybe (isJust)
  -   and the fact that a : A can be read as "'a' is a witness of the proposition 'A'".
  -}
 
-data Wit = WitVar String                -- Variables:                     x
-         | WitDef [Def]  Wit            -- Definition Expression:         define defs in w 
-         | WitApp Wit    Wit            -- Witness-Witness Application:   w w
+data Wit = WitVar String                 -- Variables:                        x
+         | WitDef [Def]  Wit             -- Definition Expression:            define defs in w 
+         | WitAbs String Wit             -- Lambda Abstraction:               λx. w
+         | WitApp Wit    Wit             -- Witness-Witness Application:      w w
+         deriving Eq
 
-data Type = TypVar   String             -- Type Variable:                 U
-          | WitPiTyp String Type Type   -- Witness Dependent Pi-Type:     Π(x:T). T
+data Type = TypVar    String             -- Type Variable:                    U
+          | WitSubTyp String Wit  Int    -- Constraint Witness Substitution:  [y ↦ w]X
+          | WitPiTyp  String Type Type   -- Witness Dependent Pi-Type:        Π(x:T). T
           deriving Eq
 
-data Family = Universe                  -- Universe Family:               @
-            | ArrFam Type Family        -- Arrow Family:                  T → F
+data Family = Universe                   -- Universe Family:                  @
+            | ArrFam Type Family         -- Arrow Family:                     T → F
+            deriving Eq
 
-data Def = WitDefJudge WitPat Wit       -- Witness Definition Judgement:  witpat :≡ w
-         | WitTypJudge WitPat Type      -- Witness Type Judgement:        witpat : T
-         | TypDefJudge TypPat Type      -- Type Definition Judgement:     typpat :≡ T
-         | TypFamJudge TypPat Family    -- Type Family Judgement:         typpat : F
+data Def = WitDefJudge WitPat Wit        -- Witness Definition Judgement:     wp :≡ w
+         | WitTypJudge WitPat Type       -- Witness Type Judgement:           wp : T
+         | TypDefJudge TypPat Type       -- Type Definition Judgement:        wp :≡ T
+         | TypFamJudge TypPat Family     -- Type Family Judgement:            wp : F
+         deriving Eq
 
-data WitPat = WitVal String             -- Witness Value:                 c
-            | FApp   WitPat    ArgP     -- Function Application Pattern:  w ap
+data WitPat = WitVal String              -- Witness Value:                    c
+            | FApp   WitPat    ArgP      -- Function Application Pattern:     w ap
+            deriving Eq
 
-data TypPat = TypVal String             -- Type Value:                    C
-            | OApp   TypPat    ArgP     -- Operator Application Pattern:  T ap
+data TypPat = TypVal String              -- Type Value:                       C
+            | OApp   TypPat    ArgP      -- Operator Application Pattern:     T ap
+            deriving Eq
 
-type ArgP = Either WitPat TypPat        -- Argument Pattern:              wp | tp
+type ArgP = Either WitPat TypPat         -- Argument Pattern:                 wp | tp
 
 {- Contexts consist of both a witness context and a type context 
  -   empty represents an empty context
@@ -75,20 +82,26 @@ hasWitVar n (wg,_) = isJust (n `lookup` wg)
 hasTypVar :: String -> Context -> Bool
 hasTypVar n (_,tg) = isJust (n `lookup` tg)
 
-freeTypVars :: Type -> [String]
-freeTypVars (TypVar s)       = [s]
-freeTypVars (WitPiTyp s t y) = freeTypVars y `union` freeTypVars t
+freeTypVars :: Context -> Type -> [String]
+freeTypVars g (TypVar s)        = if hasTypVar s g then [] else [s]
+freeTypVars g (WitSubTyp _ _ n) = ['$':show n]
+freeTypVars g (WitPiTyp _ t y)  = freeTypVars g y `union` freeTypVars g t
 
+-- Retireve all type variables in a family
 ftypVars :: Family -> [String]
 ftypVars Universe     = []
 ftypVars (ArrFam t f) = ftypVars f `union` ttypVars t
 
+-- Retireve all type variables in a type
 ttypVars :: Type -> [String]
-ttypVars (TypVar s)       = [s]
-ttypVars (WitPiTyp s t y) = ttypVars t `union` ttypVars y
+ttypVars (TypVar s)        = [s]
+ttypVars (WitSubTyp _ _ n) = ['$':show n]
+ttypVars (WitPiTyp s t y)  = ttypVars t `union` ttypVars y
 
+-- Retireve all type variables in a witness
 wtypVars :: Wit -> [String]
 wtypVars (WitVar _)    = []
+wtypVars (WitAbs _ w)  = wtypVars w
 wtypVars (WitApp a b)  = wtypVars a `union` wtypVars b
 wtypVars (WitDef ds w) = wtypVars w `union` dstypVars ds
   where dstypVars [WitDefJudge wp w] = wtypVars w `union` wptypVars wp

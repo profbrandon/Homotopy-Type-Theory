@@ -40,6 +40,11 @@ typeof0 c g (WitVar n) = -- s
 typeof0 c g (WitDef ds w) = do -- define ds in w
   (c', g') <- typeDefs c g ds
   typeof0 c' g' w
+typeof0 (eqs,vars) g (WitAbs s w) = do -- λx. w
+  let tx = fresh vars
+      g' = pushWBinding (s,TypVar tx) g
+  (tw, c', _) <- typeof0 (eqs,tx:vars) g' w 
+  return $ (WitPiTyp s (TypVar tx) tw, c', g) 
 typeof0 c g (WitApp w q) = do -- w q
   (tw, c1, _) <- typeof0 c g w
   (tq, c2, _) <- typeof0 c1 g q
@@ -103,12 +108,14 @@ typeTypPat c g (TypVal s) =
     Nothing -> return (Universe, c, (s,Universe), pushTBinding (s,Universe) g)
     Just f  -> return (f, c, (s,f), g)
 
+-- Get Fresh Variable
 fresh :: [String] -> String
 fresh ns = fresh0 0 
   where 
     fresh0 k = let name = "$" ++ show k
                in if name `elem` ns then fresh0 (k + 1) else name
 
+-- Unification
 unify :: Constraints -> Either CError [(Int, Type)]
 unify (eqs, _) = unify0 eqs
   where
@@ -123,7 +130,7 @@ unify (eqs, _) = unify0 eqs
               Just v  -> v
           _ -> hback s t cs
 
-    hTypVar x s t cs = if not ('$':x `elem` freeTypVars t) 
+    hTypVar x s t cs = if not ('$':x `elem` freeTypVars empty t) 
                       then case unify0 (subTTc n t cs) of
                         Left  k    -> Just $ Left k
                         Right subs -> Just $ Right $ (n, t):subs
@@ -144,12 +151,7 @@ unify (eqs, _) = unify0 eqs
               _ -> Left $ CMismatch s t 
           _ -> Left $ CMismatch s t
 
-shiftTV :: Int -> Int -> Type -> Type
-shiftTV i bnd t = shiftTV0 0
-  where shiftTV0 n = if n == bnd then t else subTTT n (TypVar ('$':show (n + i))) $ shiftTV0 (n + 1)
-
-shiftTVC :: Int -> Int -> Constraints -> Constraints
-shiftTVC i bnd (eqs,vars) = (map (\(t,y) -> (shiftTV i bnd t, shiftTV i bnd y)) eqs, map (\s -> let TypVar s' = shiftTV i bnd (TypVar s) in s') vars)
+-- Substitution
 
 subTTc :: Int -> Type -> [(Type, Type)] -> [(Type, Type)]
 subTTc _ _ [] = []
@@ -163,3 +165,6 @@ subTTT _ _ t                = t
 subAllTTT :: [(Int, Type)] -> Type -> Type
 subAllTTT [] t = t
 subAllTTT (s:ss) t = subAllTTT ss (uncurry subTTT s t)
+
+subWWT :: String -> Wit -> Type -> Type
+subWWT s w t = t

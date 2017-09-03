@@ -20,14 +20,16 @@ showWit g (WitVar s) =
     Nothing -> "(Unbound Witness Variable: `" ++ s ++ "`)"
     Just _  -> s
 showWit g (WitDef ds w) = "define " ++ str ++ " in " ++ showWit g' w where (str,g') = handleDefs g ds
+showWit g (WitAbs s w)  = '\\':s ++ ". " ++ showWit g' w where g' = pushWBinding (s,TypVar "$") g
 showWit g (WitApp a b)  = wRightAssoc g a ++ " " ++ wLeftAssoc g b
 
 showType :: Context -> Type -> String
-showType g (TypVar ('$':n)) = 'X':n
-showType g (TypVar s)       = s
+showType g (TypVar ('$':n))  = 'X':n
+showType g (TypVar s)        = s
+showType g (WitSubTyp s w n) = '[':s ++ " -> " ++ showWit g w ++ "]" ++ 'X':show n
 showType g (WitPiTyp s t y) 
-  | typHasWVar s y          = "Pi(" ++ s ++ ":" ++ showType g t ++ "). " ++ showType g' y
-  | otherwise               = tRightAssoc g t ++ " -> " ++ showType g' y
+  | typHasWVar s y           = "Pi(" ++ s ++ ":" ++ showType g t ++ "). " ++ showType g' y
+  | otherwise                = tRightAssoc g t ++ " -> " ++ showType g' y
   where g' = pushWBinding (s,t) g
 
 showFamily :: Context -> Family -> String
@@ -63,7 +65,8 @@ wLeftAssoc g (WitApp a b) = "(" ++ showWit g (WitApp a b) ++ ")"
 wLeftAssoc g w            = showWit g w
 
 wRightAssoc :: Context -> Wit -> String
-wRightAssoc g w = showWit g w
+wRightAssoc g (WitAbs s w) = "(" ++ showWit g (WitAbs s w) ++ ")"
+wRightAssoc g w            = showWit g w
 
 tLeftAssoc :: Context -> Type -> String 
 tLeftAssoc g t                = showType g t

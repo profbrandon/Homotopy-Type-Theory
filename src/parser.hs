@@ -19,14 +19,26 @@ wit g = do
   wapp g w
 
 wit0 :: Context -> Parser Wit
-wit0 g = (try $ wvar g) <|> (try $ wdef g) <|> (do char '('; spaces; w <- wit g; char ')'; spaces; return w)
+wit0 g = 
+  (try $ wvar g) 
+  <|> (try $ wdef g) 
+  <|> (try $ wabs g)
+  <|> (do char '('; spaces; w <- wit g; char ')'; spaces; return w)
 
 wdef :: Context -> Parser Wit
 wdef g = do
-  string "define "; spaces
+  string "define"; space; spaces
   (ds, g') <- defs g; string "in"; spaces
   w <- wit g'
   return $ WitDef ds w
+
+wabs :: Context -> Parser Wit
+wabs g = do
+  char '\\'; spaces
+  n <- witId; spaces; char '.'; spaces
+  let g' = pushWBinding (n,TypVar "$") g
+  w <- wit g'
+  return $ WitAbs n w
 
 wapp :: Context -> Wit -> Parser Wit
 wapp g w1 = 

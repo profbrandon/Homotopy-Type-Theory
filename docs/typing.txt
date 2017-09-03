@@ -16,11 +16,17 @@ Typing
                Γ ⊢ (define defs in w) : T |χ C' 
 
 
-(CT-Witness-Witness Application)
+(CT-Pi Elimination)
 
-  Γ ⊢ w : T1 |χ1 C1     Γ ⊢ q : T2 |χ2 C2
-       χ2' = shiftTV (χ2, length χ1)
-           X = fresh (χ1 ∪ χ2')
-       C' = C1 ∪ C2 ∪ {T1 = X → T2}
-  ========================================
-     Γ ⊢ (w q) : X |(χ1 ∪ χ2' ∪ {X}) C'
+        x = freshw w     X = fresh χ2
+   Γ ⊢ w : T1 |χ1 C1     Γ ⊢ q : T2 |χ2 C2
+     C' = C1 ∪ C2 ∪ {T1 = Π(x : T2). X}
+  =========================================
+  Γ ⊢ (w q) : [x ↦ q]X |(χ1 ∪ χ2 ∪ {X}) C'
+
+
+(CT-Pi Introduction)
+
+   X = fresh χ     Γ, x : X ⊢ w : T |χ C
+  =======================================
+  Γ ⊢ λ x . w : Π(x : X). T |(χ ∪ {X}) C

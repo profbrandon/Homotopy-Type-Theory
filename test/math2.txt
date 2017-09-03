@@ -1,0 +1,33 @@
+
+define
+  Bottom : @,
+
+  Unit : @,
+  unit : Unit,
+
+  Bool  : @,
+  true  : Bool,
+  false : Bool,
+  
+  not false := true,
+  not true  := false,
+
+  or true  := \x. true,
+  or false := \x. x,
+  
+  and true  := \x. x,
+  and false := \x. false,
+
+  xor false := \x. x,
+  xor true  := \x. not x,
+
+  Nat  : @,
+  n0   : Nat,
+  succ : Nat -> Nat,
+
+  pred n0       := n0,
+  pred (succ n) := n,
+
+  add n0       := \m. m,
+  add (succ n) := \m. succ (add n m)
+in

@@ -16,6 +16,8 @@ Type Variables:     U, V
 
 w := x                  Witness Variable
    | define defs in w   Definition Expression
+   | λ x . w            Lambda Abstraction
+   | w w                Witness-Witness Application
 
 T := U                  Type Variable
    | Π(x : T). T        Witness Pi-Types (Witness Dependent Exponential Types)
