@@ -17,33 +17,39 @@ import Parser
 main :: IO ()
 main = do
   args <- getArgs
-  if null args
-    then runInputT defaultSettings (loop "")
-    else do
-      bs <- mapM (doesFileExist) args
-      if and bs
-        then do
-          str <- getFiles args
-          runInputT defaultSettings (loop str)
-        else error "not all files exist"
-  where
-    loop :: String -> InputT IO ()
-    loop pre = do
-      minput <- getInputLine "HoTT> "
-      case minput of
-        Nothing     -> return ()
-        Just "quit" -> return ()
-        Just txt    ->
-          case txt of
-            ':':txt' ->
-              case () of _
-                           | "exit"   `isPrefixOf` txt' -> do return ()
-                           | "typeof" `isPrefixOf` txt' ->
-                             case computeVal (pre ++ ' ':(drop 6 txt')) of
-                               Left  e -> do outputStrLn e; loop pre
-                               Right t -> do outputStrLn $ show t; loop pre
-                           | otherwise -> do outputStrLn "Error:  unrecognized command"; loop pre
-            _ -> do outputStrLn "Error:  no command given"; loop pre
+  hFiles args
+
+loop :: String -> [String] -> InputT IO ()
+loop pre files = do
+  minput <- getInputLine "HoTT> "
+  case minput of
+    Nothing     -> return ()
+    Just "quit" -> return ()
+    Just txt    ->
+      case txt of
+        ':':txt' ->
+          case () of _
+                        | "exit"   `isPrefixOf` txt' -> do return ()
+                        | "typeof" `isPrefixOf` txt' ->
+                          case computeVal (pre ++ ' ':(drop 6 txt')) of
+                            Left  e -> do outputStrLn e; loop pre files
+                            Right t -> do outputStrLn $ show t; loop pre files
+                        | otherwise -> do outputStrLn "Error:  unrecognized command"; loop pre files
+        _ -> do outputStrLn "Error:  no command given"; loop pre files
+
+hFiles :: [String] -> IO ()
+hFiles files
+  | null files = runInputT defaultSettings (loop "" files)
+  | otherwise = do
+    bs <- mapM doesFileExist files
+    if and bs
+      then do
+        str <- getFiles files
+        runInputT defaultSettings (loop str files)
+      else do
+        let bad = filter (\(b, _) -> not b) $ zip bs files
+        mapM (\f -> putStrLn $ "File does not exist:  " ++ f) $ snd $ unzip bad
+        return ()
 
 getFiles :: [String] -> IO String
 getFiles [] = return ""

@@ -28,7 +28,6 @@ typeof w =
   case typeof0 nullc empty w of
     Left e        -> Left e
     Right (t,c,g) -> 
-      {- trace (show (fst c) ++ " ::: " ++ show g) $ -} 
       case unify c of
         Left (CMismatch s t) -> Left $ ConstraintMismatch s t
         Right subs           -> return $ subAllTTT subs t
@@ -42,20 +41,18 @@ typeof0 c g (WitDef ds w) = do -- define ds in w
   (c', g') <- typeDefs c g ds
   typeof0 c' g' w
 typeof0 c g (WitApp w q) = do -- w q
-  (tw, (e1,v1), _) <- typeof0 c g w
-  (tq, c2, _) <- typeof0 c g q
-  let (e2,v2) = shiftTVC (length $ v1) (length $ snd c2) c2
-      c3      = (e1 ++ e2, v1 ++ v2)
+  (tw, c1, _) <- typeof0 c g w
+  (tq, c2, _) <- typeof0 c1 g q
   case tw of
     WitPiTyp _ t y -> -- w : Π(_:T). Y
       if t == tq 
-        then return (y, c3, g) 
+        then return (y, c2, g) 
         else case t of 
-          TypVar ('$':_) -> let (eqs,vars) = c3 in return (y, ((t, tq):eqs,vars), g) -- w : Π(_:$X). Y,  i.e. $X = tq
+          TypVar ('$':_) -> let (eqs,vars) = c2 in return (y, ((t, tq):eqs,vars), g) -- w : Π(_:$X). Y,  i.e. $X = tq
           _ -> case tq of
-            TypVar ('$':_) -> let (eqs,vars) = c3 in return (y, ((t, tq):eqs,vars), g)
+            TypVar ('$':_) -> let (eqs,vars) = c2 in return (y, ((t, tq):eqs,vars), g)
             _ -> Left $ ParameterTypeMismatch t tq
-    TypVar ('$':_) -> let (eqs,vars) = c3; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,x:vars), g)
+    TypVar ('$':_) -> let (eqs,vars) = c2; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,x:vars), g)
     t              -> Left $ ExpectedWitPiTyp t
 
 
