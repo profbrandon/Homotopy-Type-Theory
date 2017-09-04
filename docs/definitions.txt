@@ -16,11 +16,13 @@ Type Variables:     U, V
 
 w := x                  Witness Variable
    | define defs in w   Definition Expression
-   | λ x . w            Lambda Abstraction
+   | λ x . w            Witness-Dependent Lambda Abstraction
+   | λ(X : F). w        Type-Dependent Lambda Abstraction
    | w w                Witness-Witness Application
 
 T := U                  Type Variable
-   | Π(x : T). T        Witness Pi-Types (Witness Dependent Exponential Types)
+   | Π(x : T). T        Witness-Dependent Pi-Types
+   | Π(U : F). T        Type-Dependent Pi-Types
 
 F := @                  Universe Family
    | T → F              Type Constructor Family (Arrow Family)            

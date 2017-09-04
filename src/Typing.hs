@@ -9,6 +9,7 @@ data Error = UnboundWitVar         String
            | ConstraintMismatch    Type   Type
            | ParameterTypeMismatch Type   Type
            | ExpectedWitPiTyp      Type
+           | ExpectedTypPiTyp      Type
 
 data CError = CMismatch Type Type
 
@@ -21,7 +22,8 @@ instance Show Error where
   show (UnboundWitVar n)           = "unbound witness variable `" ++ n ++ "`"
   show (ConstraintMismatch s t)    = "constraint mismatch. Attempted unification of types `" ++ show s ++ "` and `" ++ show t ++ "`"
   show (ParameterTypeMismatch t y) = "parameter type mismatch.  Expected type `" ++ show t ++ "`, but recieved type `" ++ show y ++ "`"
-  show (ExpectedWitPiTyp t)        = "expected type of the form:  Pi(t:T). T; but recieved type `" ++ show t ++ "`"
+  show (ExpectedWitPiTyp t)        = "expected type of the form:  Pi(t:T). T, but recieved type `" ++ show t ++ "`"
+  show (ExpectedTypPiTyp t)        = "expected type of the form:  Pi(T:F). T, but recieved type `" ++ show t ++ "`"
 
 typeof :: Wit -> Either Error Type
 typeof w = 
@@ -33,23 +35,31 @@ typeof w =
         Right subs           -> return $ subAllTTT subs t
 
 typeof0 :: Constraints -> Context -> Wit -> Either Error (Type, Constraints, Context)
-typeof0 c g (WitVar n) = -- s
+typeof0 c g (WitVar n) =                    -- s
   case n `lookup` (fst g) of
     Nothing -> Left $ UnboundWitVar n
     Just t  -> return (t, c, g)
-typeof0 c g (WitDef ds w) = do -- define ds in w
+typeof0 c g (WitDef ds w) = do              -- define ds in w
   (c', g') <- typeDefs c g ds
   typeof0 c' g' w
-typeof0 (eqs,vars) g (WitAbs s w) = do -- λx. w
+typeof0 (eqs,vars) g (WitWitAbs s (TypVar "") w) = do   -- λx. w
   let tx = fresh vars
       g' = pushWBinding (s,TypVar tx) g
   (tw, c', _) <- typeof0 (eqs,tx:vars) g' w 
-  return $ (WitPiTyp s (TypVar tx) tw, c', g) 
-typeof0 c g (WitApp w q) = do -- w q
+  return (WitPiTyp s (TypVar tx) tw, c', g) 
+typeof0 c g (WitWitAbs s t w) = do          -- λ(x:T). w
+  let g' = pushWBinding (s,t) g
+  (tw, c', _) <- typeof0 c g' w
+  return (WitPiTyp s t tw, c', g)
+typeof0 c g (WitTypAbs s f w) = do          -- λ(U:F). w
+  let g' = pushTBinding (s,f) g
+  (tw, c', _) <- typeof0 c g w
+  return (TypPiTyp s f tw, c', g)
+typeof0 c g (WitWitApp w q) = do            -- w q
   (tw, c1, _) <- typeof0 c g w
   (tq, c2, _) <- typeof0 c1 g q
   case tw of
-    WitPiTyp _ t y -> -- w : Π(_:T). Y
+    WitPiTyp _ t y ->                       -- w : Π(_:T). Y
       if t == tq 
         then return (y, c2, g) 
         else case t of 
@@ -59,6 +69,12 @@ typeof0 c g (WitApp w q) = do -- w q
             _ -> Left $ ParameterTypeMismatch t tq
     TypVar ('$':_) -> let (eqs,vars) = c2; x = fresh vars in return (TypVar x, ((tw, WitPiTyp "" tq (TypVar x)):eqs,x:vars), g)
     t              -> Left $ ExpectedWitPiTyp t
+typeof0 c g (WitTypApp w t) = do
+  (tw, c', _) <- typeof0 c g w
+  case tw of
+    TypPiTyp s f y -> return (subTTT s t y, c', g)
+    TypVar ('$':_) -> let (eqs,vars) = c'; x = fresh vars; y = fresh $ x:vars in return (subTTT x t $ TypVar y, ((TypVar x, t):(tw, TypPiTyp x Universe (TypVar y)):eqs, y:x:vars), g)
+    _ -> Left $ ExpectedTypPiTyp tw
 
 
 -- Typing For Definition Blocks
@@ -116,7 +132,7 @@ fresh ns = fresh0 0
                in if name `elem` ns then fresh0 (k + 1) else name
 
 -- Unification
-unify :: Constraints -> Either CError [(Int, Type)]
+unify :: Constraints -> Either CError [(String, Type)]
 unify (eqs, _) = unify0 eqs
   where
     unify0 [] = return []
@@ -124,22 +140,21 @@ unify (eqs, _) = unify0 eqs
       if s == t
         then unify0 cs
         else case s of
-          TypVar ('$':x) -> 
+          TypVar x@('$':_) -> 
             case hTypVar x s t cs of
               Nothing -> hback s t cs
               Just v  -> v
           _ -> hback s t cs
 
-    hTypVar x s t cs = if not ('$':x `elem` freeTypVars empty t) 
-                      then case unify0 (subTTc n t cs) of
+    hTypVar x s t cs = if not (x `elem` freeTypVars empty t) 
+                      then case unify0 (subTTc x t cs) of
                         Left  k    -> Just $ Left k
-                        Right subs -> Just $ Right $ (n, t):subs
+                        Right subs -> Just $ Right $ (x, t):subs
                       else Nothing
-                      where n = (read x :: Int)
 
     hback s t cs = 
       case t of
-        TypVar ('$':x) -> 
+        TypVar x@('$':_) -> 
           case hTypVar x t s cs of
             Nothing -> Left $ CMismatch s t
             Just s  -> s
@@ -149,22 +164,29 @@ unify (eqs, _) = unify0 eqs
               WitPiTyp _ t1 t2 ->
                 unify0 $ (s1,t1):(s2,t2):cs
               _ -> Left $ CMismatch s t 
+          TypPiTyp n1 f1 s2 ->
+            case t of
+              TypPiTyp n2 f2 t2 ->
+                if f1 == f2 then unify0 $ (TypVar n1,TypVar n2):(s2,t2):cs else Left $ CMismatch s t
+              _ -> Left $ CMismatch s t
           _ -> Left $ CMismatch s t
 
 -- Substitution
 
-subTTc :: Int -> Type -> [(Type, Type)] -> [(Type, Type)]
+subTTc :: String -> Type -> [(Type, Type)] -> [(Type, Type)]
 subTTc _ _ [] = []
 subTTc i t ((y1, y2):eqs) = (subTTT i t y1, subTTT i t y2):eqs' where eqs' = subTTc i t eqs 
 
-subTTT :: Int -> Type -> Type -> Type
-subTTT i t (TypVar ('$':x)) = if i == n then t else TypVar ('$':x) where n = (read x :: Int)
+subTTT :: String -> Type -> Type -> Type
+subTTT i t (TypVar x)       = if i == x then t else TypVar x
 subTTT i t (WitPiTyp s a b) = WitPiTyp s (subTTT i t a) (subTTT i t b)
+subTTT i t (TypPiTyp s f y) = TypPiTyp s (subTTF i t f) (subTTT i t y)
 subTTT _ _ t                = t
 
-subAllTTT :: [(Int, Type)] -> Type -> Type
+subTTF :: String -> Type -> Family -> Family
+subTTF _ _ Universe     = Universe
+subTTF i t (ArrFam y f) = ArrFam (subTTT i t y) (subTTF i t f)
+
+subAllTTT :: [(String, Type)] -> Type -> Type
 subAllTTT [] t = t
 subAllTTT (s:ss) t = subAllTTT ss (uncurry subTTT s t)
-
-subWWT :: String -> Wit -> Type -> Type
-subWWT s w t = t

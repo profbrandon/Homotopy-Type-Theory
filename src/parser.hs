@@ -16,13 +16,17 @@ parseWit = parse (do spaces; wit empty) ""
 wit :: Context -> Parser Wit
 wit g = do
   w <- wit0 g
-  wapp g w
+  wback g w
+
+wback :: Context -> Wit -> Parser Wit
+wback g w = (try $ wwapp g w) <|> (try $ wtapp g w) <|> (return w)
 
 wit0 :: Context -> Parser Wit
 wit0 g = 
   (try $ wvar g) 
   <|> (try $ wdef g) 
-  <|> (try $ wabs g)
+  <|> (try $ wwabs g)
+  <|> (try $ wtabs g)
   <|> (do char '('; spaces; w <- wit g; char ')'; spaces; return w)
 
 wdef :: Context -> Parser Wit
@@ -32,17 +36,36 @@ wdef g = do
   w <- wit g'
   return $ WitDef ds w
 
-wabs :: Context -> Parser Wit
-wabs g = do
+wwabs :: Context -> Parser Wit
+wwabs g = do
   char '\\'; spaces
-  n <- witId; spaces; char '.'; spaces
-  let g' = pushWBinding (n,TypVar "$") g
-  w <- wit g'
-  return $ WitAbs n w
+  (try $ do 
+    char '('; spaces
+    n <- witId; char ':'; spaces
+    t <- typ g; char ')'; spaces; char '.'; spaces
+    let g' = pushWBinding (n,t) g
+    w <- wit g'
+    return $ WitWitAbs n t w)
+  <|> (do 
+    n <- witId; char '.'; spaces
+    let g' = pushWBinding (n,TypVar "") g
+    w <- wit g'
+    return $ WitWitAbs n (TypVar "") w)
 
-wapp :: Context -> Wit -> Parser Wit
-wapp g w1 = 
-  (try $ do w2 <- wit0 g; wapp g $ WitApp w1 w2) <|> (return w1)
+wtabs :: Context -> Parser Wit
+wtabs g = do
+  char '\\'; spaces; char '('; spaces
+  n <- typId; char ':'; spaces
+  f <- fam g; char ')'; spaces; char '.'; spaces
+  let g' = pushTBinding (('$':n),f) g
+  w <- wit g'
+  return $ WitTypAbs ('$':n) f w
+
+wwapp :: Context -> Wit -> Parser Wit
+wwapp g w1 = do w2 <- wit0 g; wback g $ WitWitApp w1 w2
+
+wtapp :: Context -> Wit -> Parser Wit
+wtapp g w = do t <- typ g; wback g $ WitTypApp w t
 
 wvar :: Context -> Parser Wit
 wvar g = do
@@ -65,7 +88,9 @@ typ g = do
   arrTyp g t1
 
 typ0 :: Context -> Parser Type
-typ0 g = (try $ tvar g) <|> (witPiTyp g)
+typ0 g = (try $ tvar g) 
+  <|> (try $ witPiTyp g)
+  <|> (typPiTyp g)
 
 witPiTyp :: Context -> Parser Type
 witPiTyp g = do
@@ -75,6 +100,15 @@ witPiTyp g = do
   let g' = pushWBinding (n,t) g
   y <- typ g'
   return $ WitPiTyp n t y
+
+typPiTyp :: Context -> Parser Type
+typPiTyp g = do
+  string "Pi"; spaces; char '('; spaces
+  n <- typId; char ':'; spaces
+  f <- fam g; char ')'; spaces; char '.'; spaces
+  let g' = pushTBinding (n,f) g
+  t <- typ g'
+  return $ TypPiTyp n f t
 
 arrTyp :: Context -> Type -> Parser Type
 arrTyp g t1 = 
@@ -88,7 +122,10 @@ tvar :: Context -> Parser Type
 tvar g = do
   n <- typId
   case n `lookup` (snd g) of
-    Nothing -> parserFail $ "Unbound Type Variable"
+    Nothing -> 
+      case ('$':n) `lookup` (snd g) of
+        Nothing -> parserFail $ "Unbound Type Variable"
+        Just _  -> return $ TypVar ('$':n)
     Just _  -> return $ TypVar n
 
 typId :: Parser String 
